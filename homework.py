@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from http import HTTPStatus
 
 import requests
 import telegram
@@ -54,6 +55,12 @@ def get_api_answer(current_timestamp):
         logger.error(message)
         raise ValueError(message)
 
+    if response.status_code != HTTPStatus.OK:
+        message = (f"Эндпоинт {ENDPOINT} недоступен!"
+                   f"Код: {response.status_code}")
+        logger.error(message)
+        raise exceptions.ErrorAPIException(message)
+    print(response.json())
     return response.json()
 
 
@@ -82,14 +89,14 @@ def parse_status(homework):
     if homework_status is None:
         raise exceptions.HomeworkStatusException
     if homework_status in HOMEWORK_STATUSES:
-        verdict = HOMEWORK_STATUSES.get(homework_status)
-        return f"Изменился статус проверки работы '{homework_name}'. {verdict}"
+        verdict = HOMEWORK_STATUSES[homework_status]
+        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    else:
+        raise exceptions.HomeworkStatusException
 
 
 def check_tokens():
-    """Проверяет доступность переменных окружения,
-    которые необходимы для работы программы.
-    """
+    """Проверяет доступность переменных окружения."""
     return all([TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, PRACTICUM_TOKEN])
 
 
