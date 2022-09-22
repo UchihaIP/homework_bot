@@ -60,7 +60,7 @@ def get_api_answer(current_timestamp):
                    f"Код: {response.status_code}")
         logger.error(message)
         raise exceptions.ErrorAPIException(message)
-    print(response.json())
+
     return response.json()
 
 
