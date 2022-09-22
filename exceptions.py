@@ -26,3 +26,9 @@ class HomeworkStatusException(Exception):
     """У домашней работы не установлен статус проверки"""
 
     pass
+
+
+class MessageSendException(Exception):
+    """Произошла ошибка при отправке сообщения"""
+
+    pass
