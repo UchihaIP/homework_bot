@@ -48,9 +48,10 @@ def send_message(bot, message):
 
 def get_api_answer(current_timestamp):
     """Делает запрос к единственному эндпоинту API-сервиса."""
-    timestamp = current_timestamp
+    timestamp = current_timestamp or int(time.time())
     params = {"from_date": timestamp}
     try:
+        logger.info("Начали запрос к API")
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     except ValueError as error:
         message = f"Ошибка в запросе к API Практикума {error}"
@@ -66,36 +67,35 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
-    try:
-        homeworks_list = response["homeworks"]
-    except KeyError as error:
-        message = f"Ошибка доступа по ключу: {error}"
-        raise exceptions.CheckResponseException(message)
+    # При запуске бота, применяя метод get(), тип объекта отображается
+    # как 'dict',
+    # !но в тестах этот метод не проходит и падает ошибка,
+    # и этот метод там отображается как 'list'
+    # print(type(response))
+    # print(response)
+    # homeworks_list = response.get("homeworks")
+    homeworks_list = response["homeworks"]
     if "homeworks" and "current_date" not in response:
         message = "Нужных ключей нет в ответе API"
         raise exceptions.CheckResponseException(message)
     if not isinstance(homeworks_list, list):
         message = "Домашняя работа представлена не в виде списка!"
         raise exceptions.CheckResponseException(message)
+
     return homeworks_list
 
 
 def parse_status(homework):
     """Извлекает статус из домашней работы."""
-    if "homework_name" in homework:
-        homework_name = homework.get("homework_name")
-    else:
+    if "homework_name" not in homework:
         message = "API вернул ответ без ключа homework_name"
         raise KeyError(message)
+    homework_name = homework.get("homework_name")
     homework_status = homework.get("status")
     if homework_status not in HOMEWORK_STATUSES:
         message = "Полученного статуса нет в словаре"
         raise KeyError(message)
-    try:
-        verdict = HOMEWORK_STATUSES[homework_status]
-    except KeyError:
-        message = "API вернул неизвестный статус"
-        raise exceptions.HomeworkStatusException(message)
+    verdict = HOMEWORK_STATUSES[homework_status]
 
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -115,24 +115,21 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     # from time import mktime
     # from datetime import datetime, timedelta
-    # days_60 = datetime.today() - timedelta(days=60)
+    # days_60 = datetime.today() - timedelta(days=90)
     # current_timestamp = int(mktime(days_60.timetuple()))
     current_timestamp = int(time.time())
-    update_time = []
 
     while True:
         try:
-            response = get_api_answer(current_timestamp)
-            homeworks_list = check_response(response)
-
-            for homework in homeworks_list:
-                date_updated = homework.get("date_updated")
-                if date_updated not in update_time:
-                    update_time.append(date_updated)
-                    message = parse_status(homework)
-                    send_message(bot, message)
-
-            current_timestamp = int(time.time())
+            response_api = get_api_answer(current_timestamp)
+            homeworks_list = check_response(response_api)
+            logger.info("Получен список с домашками")
+            if homeworks_list:
+                message = parse_status(homeworks_list[0])
+                send_message(bot, message)
+            else:
+                logger.info("Домашки не обнаружены")
+            current_timestamp = response_api["current_date"]
 
         except Exception as error:
             message = f"Сбой в работе программы: {error}"
