@@ -67,14 +67,11 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
-    # При запуске бота, применяя метод get(), тип объекта отображается
-    # как 'dict',
-    # !но в тестах этот метод не проходит и падает ошибка,
-    # и этот метод там отображается как 'list'
-    # print(type(response))
-    # print(response)
-    # homeworks_list = response.get("homeworks")
-    homeworks_list = response["homeworks"]
+    if not isinstance(response, dict):
+        message = "Ответ с API не представлен в виде словаря!"
+        raise exceptions.CheckResponseException(message)
+    homeworks_list = response.get("homeworks")
+    # print(type(homeworks_list))
     if "homeworks" and "current_date" not in response:
         message = "Нужных ключей нет в ответе API"
         raise exceptions.CheckResponseException(message)
@@ -87,8 +84,8 @@ def check_response(response):
 
 def parse_status(homework):
     """Извлекает статус из домашней работы."""
-    if "homework_name" not in homework:
-        message = "API вернул ответ без ключа homework_name"
+    if "homework_name" and "status" not in homework:
+        message = "API вернул ответ без ключей homework_name и status"
         raise KeyError(message)
     homework_name = homework.get("homework_name")
     homework_status = homework.get("status")
